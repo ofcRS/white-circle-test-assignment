@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js Interview Template
 
-## Getting Started
+Next.js 16 + TypeScript + Tailwind CSS v4 + Vercel AI SDK 6 + shadcn/ui + Zod
 
-First, run the development server:
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+bun install
+cp .env.example .env.local  # add your API keys
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Key Files
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| File | Purpose |
+|------|---------|
+| `src/lib/ai.ts` | AI provider config (OpenAI + Anthropic) |
+| `src/app/api/chat/route.ts` | Streaming chat API route |
+| `src/components/chat.tsx` | Chat UI component |
+| `src/components/ui/` | shadcn/ui components (button, input, card, textarea) |
+| `src/lib/utils.ts` | `cn()` utility for classnames |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## AI SDK Quick Reference
 
-## Learn More
+```ts
+// --- Server-side (route handlers, server actions) ---
+import { streamText, generateText, generateObject } from "ai";
+import { model, openai, anthropic } from "@/lib/ai";
 
-To learn more about Next.js, take a look at the following resources:
+// Stream text
+const result = streamText({ model, messages });
+return result.toUIMessageStreamResponse();
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+// Generate text (non-streaming)
+const { text } = await generateText({ model, prompt: "..." });
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+// Structured output with Zod
+import { z } from "zod/v4";
+const { object } = await generateObject({
+  model,
+  schema: z.object({ name: z.string(), age: z.number() }),
+  prompt: "...",
+});
 
-## Deploy on Vercel
+// Switch model
+streamText({ model: openai("gpt-4o"), messages });
+streamText({ model: anthropic("claude-sonnet-4-20250514"), messages });
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+// --- Client-side ---
+import { useChat } from "@ai-sdk/react";
+const { messages, sendMessage, status } = useChat();
+// status: "ready" | "submitted" | "streaming" | "error"
+sendMessage({ text: "Hello" });
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Add More UI Components
+
+```bash
+bunx shadcn@latest add dialog select tabs badge
+```
