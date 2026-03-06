@@ -2,6 +2,8 @@
 
 Secure AI chat application with real-time PII detection and masking, built with Next.js 16 and Vercel AI SDK 6.
 
+<img width="1439" height="608" alt="Screenshot 2026-03-06 at 23 42 49" src="https://github.com/user-attachments/assets/51fa0b1a-3b2e-4f24-858e-491f6646115e" />
+
 ## Features
 
 - **AI Chat** — streaming responses via OpenRouter (GPT-4.1-mini)
