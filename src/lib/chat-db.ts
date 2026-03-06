@@ -10,6 +10,13 @@ export async function createChat(id: string, title: string) {
   if (error) throw error;
 }
 
+export async function ensureChatExists(id: string, title: string) {
+  const { error } = await db()
+    .from("chats")
+    .upsert({ id, title }, { onConflict: "id", ignoreDuplicates: true });
+  if (error) throw error;
+}
+
 export async function listChats(): Promise<ChatRow[]> {
   const { data, error } = await db()
     .from("chats")

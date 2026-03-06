@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +15,7 @@ import {
   User,
   CheckCheck,
   Fingerprint,
+  Loader2,
 } from "lucide-react";
 
 export function Chat({
@@ -25,14 +27,15 @@ export function Chat({
   initialMessages?: UIMessage[];
   onChatCreated?: () => void;
 }) {
-  const chatIdRef = useRef(initialChatId);
+  const router = useRouter();
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        body: () => ({ chatId: chatIdRef.current }),
+        body: () => ({ chatId: initialChatId }),
       }),
-    [],
+    [initialChatId],
   );
 
   const { messages, sendMessage, status } = useChat({
@@ -41,12 +44,9 @@ export function Chat({
     transport,
   });
 
-  useEffect(() => {
-    console.log("[Chat] status changed:", status, "messages:", messages.length);
-  }, [status, messages.length]);
-
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasSentPending = useRef(false);
 
   const isLoading = status === "submitted" || status === "streaming";
 
@@ -56,48 +56,53 @@ export function Chat({
     }
   }, [messages, status]);
 
-  // After stream completes for a new chat, update the URL
-  const didRedirect = useRef(false);
+  // On mount, check for a pending message from sessionStorage (new chat redirect)
   useEffect(() => {
-    if (
-      chatIdRef.current &&
-      !initialChatId &&
-      !didRedirect.current &&
-      status === "ready" &&
-      messages.length > 1
-    ) {
-      didRedirect.current = true;
-      console.log("[Chat] Stream done, updating URL to /chat/" + chatIdRef.current);
-      window.history.replaceState(null, "", `/chat/${chatIdRef.current}`);
+    if (!initialChatId || hasSentPending.current) return;
+    const key = `pendingMessage_${initialChatId}`;
+    const pendingText = sessionStorage.getItem(key);
+    if (pendingText) {
+      sessionStorage.removeItem(key);
+      hasSentPending.current = true;
+      sendMessage({ text: pendingText });
     }
-  }, [status, messages.length, initialChatId]);
+  }, [initialChatId, sendMessage]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("[Chat] handleSubmit called, input:", input.slice(0, 50), "isLoading:", isLoading, "chatIdRef:", chatIdRef.current);
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || isCreatingChat) return;
 
     const text = input;
     setInput("");
 
-    // New chat: create in DB in background, send message immediately
-    if (!chatIdRef.current) {
-      const id = crypto.randomUUID();
-      chatIdRef.current = id;
-      console.log("[Chat] Creating new chat with id:", id);
-      fetch("/api/chats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, title: text.slice(0, 100) }),
-      }).then((resp) => {
-        console.log("[Chat] Chat creation response:", resp.status);
-        onChatCreated?.();
-      });
+    if (initialChatId) {
+      // Existing chat: send directly
+      sendMessage({ text });
+      return;
     }
 
-    console.log("[Chat] Calling sendMessage with chatIdRef:", chatIdRef.current);
-    sendMessage({ text });
-    console.log("[Chat] sendMessage called");
+    // New chat: create in DB, store pending message, redirect
+    const newChatId = crypto.randomUUID();
+    setIsCreatingChat(true);
+    try {
+      const res = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: newChatId,
+          title: text.slice(0, 100),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to create chat");
+
+      sessionStorage.setItem(`pendingMessage_${newChatId}`, text);
+      onChatCreated?.();
+      router.push(`/chat/${newChatId}`);
+    } catch {
+      // Restore input on failure
+      setInput(text);
+      setIsCreatingChat(false);
+    }
   };
 
   return (
@@ -181,10 +186,14 @@ export function Chat({
           </div>
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || isCreatingChat || !input.trim()}
             className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Send className="size-4" />
+            {isCreatingChat ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
           </button>
         </form>
         <p className="mx-auto mt-2 max-w-2xl text-center text-[10px] text-muted-foreground/60">
