@@ -1,90 +1,85 @@
-# Next.js Interview Template
+# White Circle
 
-Next.js 16 + TypeScript + Tailwind CSS v4 + Vercel AI SDK 6 + shadcn/ui + Zod
+Secure AI chat application with real-time PII detection and masking, built with Next.js 16 and Vercel AI SDK 6.
 
-## Setup
+## Features
+
+- **AI Chat** — streaming responses via OpenRouter (GPT-4.1-mini)
+- **PII Detection** — automatic detection of names, emails, phones, addresses, passport numbers, INN, SNILS
+- **PII Masking** — sensitive data hidden behind spoiler tags with click-to-reveal
+- **Chat Persistence** — conversations saved to Supabase with full history
+- **Markdown Rendering** — rich message formatting with syntax highlighting
+- **Dark Mode** — system-aware theme switching
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| AI | Vercel AI SDK 6 + OpenRouter |
+| Database | Supabase (PostgreSQL) |
+| UI | shadcn/ui + Tailwind CSS v4 |
+| Language | TypeScript 5 |
+| Runtime | Bun |
+
+## Getting Started
 
 ```bash
+# Install dependencies
 bun install
-cp .env.example .env.local  # add your OpenRouter API key
+
+# Set up environment variables
+cp .env.example .env.local
+
+# Run database migrations (requires Supabase CLI)
+supabase db push
+
+# Start development server
 bun dev
 ```
 
-## Key Files
+## Environment Variables
 
-| File | Purpose |
-|------|---------|
-| `src/lib/ai.ts` | OpenRouter provider config + model shortcuts |
-| `src/app/api/chat/route.ts` | Streaming chat API route |
-| `src/components/chat.tsx` | Chat UI component |
-| `src/components/ui/` | shadcn/ui components (button, input, card, textarea, badge, tabs, sonner) |
-| `src/lib/utils.ts` | `cn()` utility for classnames |
+| Variable | Description |
+|----------|-------------|
+| `OPENROUTER_API_KEY` | API key from [OpenRouter](https://openrouter.ai) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) |
 
-## AI SDK 6 Quick Reference
+## Project Structure
 
-### Streaming text (server-side)
-```ts
-import { streamText } from "ai";
-import { defaultModel } from "@/lib/ai";
-
-const result = streamText({ model: defaultModel, system: "...", messages });
-return result.toUIMessageStreamResponse();
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── chat/route.ts        # Streaming chat endpoint with PII scanning
+│   │   └── chats/               # Chat CRUD endpoints
+│   ├── chat/[chatId]/page.tsx   # Individual chat page
+│   ├── page.tsx                 # Home / new chat
+│   └── layout.tsx               # Root layout with theme provider
+├── components/
+│   ├── chat.tsx                 # Main chat component
+│   ├── chat-history.tsx         # Sidebar with saved conversations
+│   ├── markdown.tsx             # Markdown renderer
+│   ├── pii-spoiler.tsx          # Click-to-reveal PII spoiler
+│   ├── pii-text.tsx             # Text with inline PII masking
+│   └── ui/                      # shadcn/ui primitives
+└── lib/
+    ├── ai.ts                    # OpenRouter provider config
+    ├── chat-db.ts               # Chat persistence layer
+    ├── db-types.ts              # Database type definitions
+    ├── pii.ts                   # PII detection via LLM
+    ├── pii-parser.ts            # PII entity parser
+    ├── pii-stream.ts            # Streaming PII processing
+    └── supabase.ts              # Supabase client
 ```
 
-### Structured output with Zod (server-side)
-```ts
-import { generateText, Output } from "ai";
-import { z } from "zod";
+## Deployment
 
-const { output } = await generateText({
-  model: defaultModel,
-  output: Output.object({
-    schema: z.object({
-      entities: z.array(z.object({
-        type: z.enum(["name", "email", "phone", "address", "passport", "inn", "snils"]),
-        value: z.string(),
-        start: z.number(),
-        end: z.number(),
-        confidence: z.number(),
-      })),
-    }),
-  }),
-  prompt: `Extract all PII entities from this text: ${text}`,
-});
-```
-
-### Chat hook (client-side)
-```ts
-import { useState } from "react";
-import { useChat } from "@ai-sdk/react";
-
-const { messages, sendMessage, status } = useChat();
-const [input, setInput] = useState("");
-
-// status: "ready" | "submitted" | "streaming" | "error"
-const isLoading = status === "submitted" || status === "streaming";
-
-// Send a message
-sendMessage({ text: input });
-
-// Messages use parts-based structure (no .content string)
-messages.map(m => m.parts.map(p => p.type === "text" ? p.text : null));
-```
-
-### Deprecated patterns to avoid
-- `generateObject` -> use `generateText` with `output: Output.object({ schema })`
-- `streamObject` -> use `streamText` with `output: Output.object({ schema })`
-- `experimental_output` -> use `output`
-- `toDataStreamResponse()` -> use `toUIMessageStreamResponse()`
-- `import { useChat } from "ai/react"` -> use `import { useChat } from "@ai-sdk/react"`
-- `useChat` no longer returns `input`/`handleInputChange`/`handleSubmit`/`isLoading` -> use `sendMessage`/`status` + own `useState`
-- `CoreMessage` -> use `ModelMessage`
-- `convertToCoreMessages()` -> use `convertToModelMessages()` (now async, must await)
-- `addToolResult` -> use `addToolOutput`
-- `message.content` -> use `message.parts` (parts-based structure)
-
-## Add More UI Components
+Deploy to Vercel with one click or via CLI:
 
 ```bash
-bunx shadcn@latest add [component-name]
+bunx vercel --prod
 ```
+
+Set the environment variables in your Vercel project settings before deploying.

@@ -9,3 +9,6 @@ export const defaultModel = openrouter.chat("openai/gpt-4o-mini");
 
 // Smarter model for complex tasks
 export const smartModel = openrouter.chat("anthropic/claude-sonnet-4.5");
+
+// Lightweight model for PII detection
+export const piiModel = openrouter.chat("openai/gpt-4o-mini");
