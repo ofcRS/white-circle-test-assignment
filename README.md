@@ -55,16 +55,33 @@ const { output } = await generateText({
 
 ### Chat hook (client-side)
 ```ts
+import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
-const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat();
+
+const { messages, sendMessage, status } = useChat();
+const [input, setInput] = useState("");
+
+// status: "ready" | "submitted" | "streaming" | "error"
+const isLoading = status === "submitted" || status === "streaming";
+
+// Send a message
+sendMessage({ text: input });
+
+// Messages use parts-based structure (no .content string)
+messages.map(m => m.parts.map(p => p.type === "text" ? p.text : null));
 ```
 
 ### Deprecated patterns to avoid
-- `generateObject` -> use `generateText` with `Output.object({ schema })`
-- `streamObject` -> use `streamText` with `Output.object({ schema })`
+- `generateObject` -> use `generateText` with `output: Output.object({ schema })`
+- `streamObject` -> use `streamText` with `output: Output.object({ schema })`
+- `experimental_output` -> use `output`
+- `toDataStreamResponse()` -> use `toUIMessageStreamResponse()`
 - `import { useChat } from "ai/react"` -> use `import { useChat } from "@ai-sdk/react"`
+- `useChat` no longer returns `input`/`handleInputChange`/`handleSubmit`/`isLoading` -> use `sendMessage`/`status` + own `useState`
 - `CoreMessage` -> use `ModelMessage`
-- `convertToCoreMessages()` -> use `convertToModelMessages()` (now async)
+- `convertToCoreMessages()` -> use `convertToModelMessages()` (now async, must await)
+- `addToolResult` -> use `addToolOutput`
+- `message.content` -> use `message.parts` (parts-based structure)
 
 ## Add More UI Components
 
